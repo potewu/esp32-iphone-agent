@@ -25,18 +25,31 @@ jobs:
       - name: Install XcodeGen
         run: brew install xcodegen
 
-      # 自动修复 AgentFace.swift 中的 cos/sin 类型模糊报错
-      - name: Patch AgentFace.swift Ambiguity
+      # 自动修复 Swift 类型模糊（AgentFace 和 StepFrame）
+      - name: Patch Swift Type Ambiguities
         run: |
           python3 -c "
-          p = 'ios/Shared/AgentFace.swift'
-          with open(p, 'r', encoding='utf-8') as f:
-              s = f.read()
-          s = s.replace('rad * cos(a)', 'rad * CGFloat(cos(Double(a)))')
-          s = s.replace('rad * sin(a)', 'rad * CGFloat(sin(Double(a)))')
-          with open(p, 'w', encoding='utf-8') as f:
-              f.write(s)
-          print('Successfully patched AgentFace.swift')
+          import os
+
+          for root, dirs, files in os.walk('ios'):
+              for file in files:
+                  if file.endswith('.swift'):
+                      fpath = os.path.join(root, file)
+                      with open(fpath, 'r', encoding='utf-8') as f:
+                          content = f.read()
+                      orig = content
+                      # 修复 AgentFace.swift 中的 cos/sin 歧义
+                      content = content.replace('rad * cos(a)', 'rad * CGFloat(cos(Double(a)))')
+                      content = content.replace('rad * sin(a)', 'rad * CGFloat(sin(Double(a)))')
+                      # 修复 StepFrame.swift 中的 atan2 与 .pi 歧义
+                      content = content.replace(
+                          'atan2(last.y - prev.y, last.x - prev.x) + .pi / 2',
+                          'atan2(Double(last.y - prev.y), Double(last.x - prev.x)) + Double.pi / 2'
+                      )
+                      if content != orig:
+                          print(f'Successfully patched: {fpath}')
+                          with open(fpath, 'w', encoding='utf-8') as f:
+                              f.write(content)
           "
 
       - name: Prepare Local Config
