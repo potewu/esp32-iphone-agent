@@ -13,45 +13,13 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Select Xcode 16.2
-        run: |
-          if [ -d "/Applications/Xcode_16.2.app" ]; then
-            sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
-          elif [ -d "/Applications/Xcode_16.0.app" ]; then
-            sudo xcode-select -s /Applications/Xcode_16.0.app/Contents/Developer
-          fi
-          xcodebuild -version
+      - name: Check Xcode Version
+        run: xcodebuild -version
 
       - name: Install XcodeGen
         run: brew install xcodegen
 
-      # 自动修复 Swift 类型模糊（AgentFace 和 StepFrame）
-      - name: Patch Swift Type Ambiguities
-        run: |
-          python3 -c "
-          import os
-
-          for root, dirs, files in os.walk('ios'):
-              for file in files:
-                  if file.endswith('.swift'):
-                      fpath = os.path.join(root, file)
-                      with open(fpath, 'r', encoding='utf-8') as f:
-                          content = f.read()
-                      orig = content
-                      # 修复 AgentFace.swift 中的 cos/sin 歧义
-                      content = content.replace('rad * cos(a)', 'rad * CGFloat(cos(Double(a)))')
-                      content = content.replace('rad * sin(a)', 'rad * CGFloat(sin(Double(a)))')
-                      # 修复 StepFrame.swift 中的 atan2 与 .pi 歧义
-                      content = content.replace(
-                          'atan2(last.y - prev.y, last.x - prev.x) + .pi / 2',
-                          'atan2(Double(last.y - prev.y), Double(last.x - prev.x)) + Double.pi / 2'
-                      )
-                      if content != orig:
-                          print(f'Successfully patched: {fpath}')
-                          with open(fpath, 'w', encoding='utf-8') as f:
-                              f.write(content)
-          "
-
+      # 仅配置免签名参数，不修改任何源码
       - name: Prepare Local Config
         run: |
           mkdir -p ios/Config
