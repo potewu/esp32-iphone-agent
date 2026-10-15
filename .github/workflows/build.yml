@@ -13,7 +13,6 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 显式锁定使用与项目最兼容的 Xcode 16.2
       - name: Select Xcode 16.2
         run: |
           if [ -d "/Applications/Xcode_16.2.app" ]; then
@@ -26,7 +25,20 @@ jobs:
       - name: Install XcodeGen
         run: brew install xcodegen
 
-      # 完整写入针对免证书/免费ID的 Local.xcconfig 配置
+      # 自动修复 AgentFace.swift 中的 cos/sin 类型模糊报错
+      - name: Patch AgentFace.swift Ambiguity
+        run: |
+          python3 -c "
+          p = 'ios/Shared/AgentFace.swift'
+          with open(p, 'r', encoding='utf-8') as f:
+              s = f.read()
+          s = s.replace('rad * cos(a)', 'rad * CGFloat(cos(Double(a)))')
+          s = s.replace('rad * sin(a)', 'rad * CGFloat(sin(Double(a)))')
+          with open(p, 'w', encoding='utf-8') as f:
+              f.write(s)
+          print('Successfully patched AgentFace.swift')
+          "
+
       - name: Prepare Local Config
         run: |
           mkdir -p ios/Config
