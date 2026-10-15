@@ -7,35 +7,38 @@ on:
 
 jobs:
   build-ipa:
-    # 切换为 macos-15（默认环境已全量搭载 Xcode 16+）
     runs-on: macos-15
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 动态选用最新的 Xcode 16+ 版本
-      - name: Select Xcode 16
+      # 显式锁定使用与项目最兼容的 Xcode 16.2
+      - name: Select Xcode 16.2
         run: |
-          XCODE_PATH=$(find /Applications -maxdepth 1 -name "Xcode_16*.app" | sort -V | tail -n 1)
-          if [ -n "$XCODE_PATH" ]; then
-            echo "Selected: $XCODE_PATH"
-            sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
+          if [ -d "/Applications/Xcode_16.2.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
+          elif [ -d "/Applications/Xcode_16.0.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_16.0.app/Contents/Developer
           fi
           xcodebuild -version
 
       - name: Install XcodeGen
         run: brew install xcodegen
 
+      # 完整写入针对免证书/免费ID的 Local.xcconfig 配置
       - name: Prepare Local Config
         run: |
-          if [ -f ios/Config/Local.xcconfig.example ]; then
-            cp ios/Config/Local.xcconfig.example ios/Config/Local.xcconfig
-          else
-            touch ios/Config/Local.xcconfig
-          fi
-          echo "DEVELOPMENT_TEAM = 0000000000" >> ios/Config/Local.xcconfig
-          echo "IA_BUNDLE_ID = com.personal.esp32iphoneagent" >> ios/Config/Local.xcconfig
+          mkdir -p ios/Config
+          cat << 'EOF' > ios/Config/Local.xcconfig
+          DEVELOPMENT_TEAM = 0000000000
+          IA_BUNDLE_ID = com.personal.esp32iphoneagent
+          IA_ENTITLEMENTS =
+          IA_WIDGET_ENTITLEMENTS =
+          IA_PRESET_BASE_URL =
+          IA_PRESET_MODEL =
+          IA_PRESET_KEY =
+          EOF
 
       - name: Generate Xcode Project
         run: |
